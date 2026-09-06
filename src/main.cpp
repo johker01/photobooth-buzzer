@@ -26,7 +26,7 @@
 // Change the below values if desired
 #define BUTTON_GPIO 12
 #define HID_CHAR_TAKE_PICTURE "c"
-#define DEVICE_NAME "photobooth-app buzzer"
+#define DEVICE_NAME "Fotobox Buzzer"
 
 // Forward declarations
 void setupBluetooth();

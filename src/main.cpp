@@ -45,31 +45,32 @@ void Task_Fuelgauge(void *pvParameters)
   (void)pvParameters;
   uint8_t percentBattery;
   uint8_t percentHidOut;
-
-  /* init code*/
+  bool maxInitialized = false;
 
   Serial.println(F("\nInit MAX17048"));
 
-  delay(100);
-  if (!maxlipo.begin())
-  {
-    Serial.println(F("Couldnt find MAX17048?\nMake sure a battery is plugged in! Continue without Max"));
-  }
-  else
-  {
-    Serial.print(F("Found MAX17048"));
-    Serial.print(F(" with Chip ID: 0x"));
-    Serial.println(maxlipo.getChipID(), HEX);
-  }
-  delay(100);
-
   while (1) // A Task shall never return or exit.
   {
+    if (!maxInitialized)
+    {
+      maxInitialized = maxlipo.begin();
+      if (!maxInitialized)
+      {
+        Serial.println(F("Couldnt find MAX17048?\nMake sure a battery is plugged in! Retrying..."));
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        continue;
+      }
+
+      Serial.print(F("Found MAX17048"));
+      Serial.print(F(" with Chip ID: 0x"));
+      Serial.println(maxlipo.getChipID(), HEX);
+    }
 
     float cellVoltage = maxlipo.cellVoltage();
     if (isnan(cellVoltage))
     {
       Serial.println("Failed to read cell voltage, check battery is connected!");
+      maxInitialized = false; // sensor went away - retry begin() next iteration
     }
     else
     {

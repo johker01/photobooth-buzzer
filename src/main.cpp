@@ -300,7 +300,7 @@ void typeText(const char *text)
 
     // translate character to key combination
     uint8_t val = (uint8_t)text[i];
-    if (val > KEYMAP_SIZE)
+    if (val >= KEYMAP_SIZE)
       continue; // character not available on keyboard - skip
     KEYMAP map = keymap[val];
 

@@ -10,28 +10,28 @@
 
 //
 // This program lets an ESP32 act as a keyboard connected via Bluetooth.
-// When a button attached to the ESP32 is pressed, it will generate key strokes.
+// When a button attached to the ESP32 is pressed, it will generate a key stroke.
 //
-
-#define US_KEYBOARD 1
 
 #include <Arduino.h>
 #include "BLEDevice.h"
 #include "BLEHIDDevice.h"
 #include "HIDTypes.h"
-#include "HIDKeyboardTypes.h"
 #include "Button2.h"
 #include "Adafruit_MAX1704X.h"
 
 // Change the below values if desired
 #define BUTTON_GPIO 12
-#define HID_CHAR_TAKE_PICTURE "c"
+// HID usage of the key sent on a press. F14 is a key nobody types, so photobooth2
+// can tell this buzzer apart from a real keyboard's `c` and from the USB buzzer
+// (rp2040-keyboard, F13). Must stay within the report map's usage range.
+#define HID_KEY_TAKE_PICTURE 0x69 // Keyboard F14
 #define DEVICE_NAME "Fotobox Buzzer"
 
 // Forward declarations
 void setupBluetooth();
 void setupButtons();
-void typeText(const char *text);
+void sendKey(uint8_t usage);
 void handleTap(Button2 &b);
 
 // global variables
@@ -119,9 +119,9 @@ void handleTap(Button2 &b)
 {
   if (isBleConnected)
   {
-    // button has been pressed: type message
-    Serial.println(HID_CHAR_TAKE_PICTURE);
-    typeText(HID_CHAR_TAKE_PICTURE);
+    // button has been pressed: send the key
+    Serial.println("sending F14");
+    sendKey(HID_KEY_TAKE_PICTURE);
   }
   else
     Serial.println("not connected, button press ignored");
@@ -162,9 +162,9 @@ static const uint8_t REPORT_MAP[] = {
     REPORT_COUNT(1), 0x06, //   6 bytes (for up to 6 concurrently pressed keys)
     REPORT_SIZE(1), 0x08,
     LOGICAL_MINIMUM(1), 0x00,
-    LOGICAL_MAXIMUM(1), 0x65, //   101 keys
+    LOGICAL_MAXIMUM(1), 0x73, //   up to F24, so F13-F24 can be sent
     USAGE_MINIMUM(1), 0x00,
-    USAGE_MAXIMUM(1), 0x65,
+    USAGE_MAXIMUM(1), 0x73,
     HIDINPUT(1), 0x00,     //   Data, Array, Abs
     REPORT_COUNT(1), 0x05, //   5 bits (Num lock, Caps lock, Scroll lock, Compose, Kana)
     REPORT_SIZE(1), 0x01,
@@ -293,37 +293,22 @@ void setupBluetooth()
   // delay(portMAX_DELAY);
 };
 
-void typeText(const char *text)
+void sendKey(uint8_t usage)
 {
-  int len = strlen(text);
-  for (int i = 0; i < len; i++)
-  {
+  InputReport report = {
+      .modifiers = 0,
+      .reserved = 0,
+      .pressedKeys = {
+          usage,
+          0, 0, 0, 0, 0}};
 
-    // translate character to key combination
-    uint8_t val = (uint8_t)text[i];
-    if (val >= KEYMAP_SIZE)
-      continue; // character not available on keyboard - skip
-    KEYMAP map = keymap[val];
+  // send the key press
+  input->setValue((uint8_t *)&report, sizeof(report));
+  input->notify();
 
-    // create input report
-    InputReport report = {
-        .modifiers = map.modifier,
-        .reserved = 0,
-        .pressedKeys = {
-            map.usage,
-            0, 0, 0, 0, 0}};
+  delay(5);
 
-    // send the input report
-    input->setValue((uint8_t *)&report, sizeof(report));
-    input->notify();
-
-    delay(5);
-
-    // release all keys between two characters; otherwise two identical
-    // consecutive characters are treated as just one key press
-    input->setValue((uint8_t *)&NO_KEY_PRESSED, sizeof(NO_KEY_PRESSED));
-    input->notify();
-
-    delay(5);
-  }
+  // release it again, so the next press counts as a new one
+  input->setValue((uint8_t *)&NO_KEY_PRESSED, sizeof(NO_KEY_PRESSED));
+  input->notify();
 }

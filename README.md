@@ -12,6 +12,7 @@ Buzzer based on ESP32 connects to photobooth via bluetooth emulating a keyboard 
 - Possible to charge while using. Battery is charged even if buzzer is turned off.
 - simple installation using Visual Studio Code and Platform IO plugin
 - emulates bluetooth keyboard, easy integration in a photobooth
+- sends F14 on a press, a key nobody types, so photobooth2 can tell it apart from a real keyboard and from the USB buzzer ([rp2040-keyboard](https://github.com/johker01/rp2040-keyboard), F13). If a host paired the buzzer while it still sent `c`, remove and pair it again: the host caches the old HID report map.
 - Runtime on battery is ~18h. The power consumption measured is about 60mA - the battery has 1100mAh capacity.
 
 ## Images
